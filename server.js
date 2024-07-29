@@ -1,58 +1,95 @@
-// Para utilizar é necessário importar o express
-import express from "express"
+import express from "express";
+import { v4 as uuidv4 } from "uuid";
 
 const PORT = 3333
 
-// app armazena tudo que express fornece
 const app = express()
 
-//parte 1 - Roteamento - GET, POST, PUT/PATCH, DELETE
-//parte 2 - Roteamento - Receber informaçoes
-    /**
-     * Formas:
-     * 1- QUERY PARAMS -> Parâmetros de rotas, na maioria das vezes usa-se o GET -> /users?nome=Carlos&cargo=Instrutor
-     * 2- ROUTE PARAMS -> Utilizados em todas as rotas (GET, PATCH, DELETE) menos POST -> /uers/1
-     * 3- BODY PARAMS -. Utilizado no método POST -> /users = {JSON}
-     */
+app.use(express.json())
+app.use(express.urlencoded({extended:true}))
 
-// 1 - QUERY PARAMS
-app.get('/users', (req, res) => {
+const logRoutes = (req, res, next) => {
+    const { url, method } = req
+    const rota = `[${method.toUpperCase()}] ${url}`
+    console.log(rota)
+    next()
+}
 
-    console.log(req)
+app.use(logRoutes)
 
-    // propriedades que tem dentro de query
-    //            |
-    const {nome, cargo, idade} = req.query  //objeto destruturado para simplificar
-    res.status(200).json({nome, cargo, idade})
+const usuarios = []
+
+app.get('/usuarios', logRoutes, (req, res) => { //listar
+    res.status(200).json(usuarios)
 })
 
-app.post('/users', (req, res) => {
-    res.status(201).json([
-        'Usuário 01',
-        'Usuário 02',
-        'Usuário 03',
-        'Usuário 04'
+app.post('/usuarios', (req, res) => { //cadastrar usuários
+    const {nome, cargo} = req.body
 
-    ])
+    //Validações
+    if(!nome){
+        res.status(400).json({message: "O nome é obrigatório"})
+        return
+    }
+    if(!cargo){
+        res.status(400).json({message: "O cargo é obrigatório"})
+        return
+    }
+
+    const novoUsuario = {
+        nome,
+        cargo,
+        id: uuidv4(),
+    };
+
+    usuarios.push(novoUsuario)
+    res.status(201).json({message: `usuário(a) ${novoUsuario.nome} cadastrado(a) `})
 })
 
-// 2- ROUTE PARAMS - GET, PATCH, DELETE -> users/1
-
-// parâmetros: :params1/:params2...
-app.put('/users/:id/:idade', (req, res) => {
-    
+app.patch('/usuarios/:id', (req, res) => { //atualizar
     const {id} = req.params
-    res.status(200).json({"user": id, "idade": idade})
+    const {nome, cargo} = req.body
+
+    const indexUsuario = usuarios.findIndex(usuario => usuario.id === id)
+
+    if(indexUsuario === -1){
+        res.status(404).json({message: "Usuário não encontrado"})
+        return
+    }
+
+    //Validações
+    if(!nome){
+        res.status(400).json({message: "O nome é obrigatório"})
+        return
+    }
+    if(!cargo){
+        res.status(400).json({message: "O cargo é obrigatório"})
+        return
+    }
+
+    const updateUsuario = {
+        nome,
+        cargo,
+        id
+    }
+
+    usuarios[indexUsuario] = updateUsuario
+    res.status(200).json({message: `Usuário ${updateUsuario.nome} atualizado`})
 })
 
-app.delete('/users', (req, res) => {
-    res.status(200).json([
-        'Usuário 02',
-        'Usuário 03',
-        'Usuário 04'
-    ])
-})
+app.delete('/usuarios/:id', (req, res) => { //deletar
+    const id = req.params.id
 
+    const indexUsuario = usuarios.find(usuario => usuario.id === id)
+
+    if(!indexUsuario){
+        res.status(404).json({message: "Usuário não encontrado"})
+        return
+    }
+
+    usuarios.splice(indexUsuario, 1) //splice: o "1" é para ele entender que é apenas um usuário deletado, no caso ele mesmo, se por exemplo for o num 2 serio deletado dois usuários
+    res.status(200).json({message: "Usuario deletado"})
+})
 
 app.listen(PORT, () => {
     console.log(`Servidor on PORT ${PORT}🟢`)
